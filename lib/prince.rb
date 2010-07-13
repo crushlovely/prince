@@ -10,7 +10,7 @@ class Object
   end
 end
 
-require 'prince/pdf'
+require 'prince/base'
 
 module Prince
   class ConfigurationError < StandardError; end

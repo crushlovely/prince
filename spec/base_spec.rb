@@ -1,8 +1,8 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
-describe Prince::Pdf do
+describe Prince::Base do
   describe "defaults" do
-    let(:pdf) { Prince::Pdf.new }
+    let(:pdf) { Prince::Base.new }
 
     it "should set the executable to whatever is returned by `which prince`" do
       pdf.should_receive(:`).with('which prince').and_return('/path/to/prince')
@@ -24,17 +24,17 @@ describe Prince::Pdf do
 
   describe "passing in options" do
     it "should always make :sources an array" do
-      Prince::Pdf.new(:source => 'file.html').sources.should be_an(Array)
+      Prince::Base.new(:source => 'file.html').sources.should be_an(Array)
     end
 
     it "should always make :stylesheets an array" do
-      Prince::Pdf.new(:stylesheets => 'file.html').stylesheets.should be_an(Array)
+      Prince::Base.new(:stylesheets => 'file.html').stylesheets.should be_an(Array)
     end
   end
 
   describe "#command" do
     let(:pdf) { 
-      instance = Prince::Pdf.new(:sources => ['file.html'])
+      instance = Prince::Base.new(:sources => ['file.html'])
       instance.stub!(:`).and_return('/path/to/prince')
       instance
     }
