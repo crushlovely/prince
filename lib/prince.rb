@@ -1,33 +1,26 @@
 $:.unshift File.dirname(__FILE__)
-
-class Object
-  def blank?
-    respond_to?(:empty?) ? empty? : !self
-  end
-
-  def present?
-    !blank?
-  end
-end
+require 'extensions/object'
 
 class Prince
-  attr_accessor :executable, :sources, :stylesheets, :input
+  attr_accessor :executable, :stylesheets, :source, :input_format, :pdf, :output_file
 
+  class ExecutableError < ArgumentError; end
   class SourceError < ArgumentError; end
   class InputError < ArgumentError; end
+  class OutputFileError < ArgumentError; end
 
   def initialize(options = {})
-    @sources = normalize_array_attribute(options[:sources])
     @stylesheets = normalize_array_attribute(options[:stylesheets])
-    @input = options[:input]
+    @source = options[:source]
+    @input_format = options[:input_format]
   end
 
   def executable
     @executable ||= `which prince`.chomp
   end
 
-  def input
-    @input ||= 'html'
+  def input_format
+    @input_format ||= 'html'
   end
 
   def stylesheets
@@ -37,44 +30,59 @@ class Prince
   def stylesheets=(value)
     @stylesheets = normalize_array_attribute(value)
   end
-
-  def sources
-    @sources ||= []
-  end
-
-  def sources=(value)
-    @sources = normalize_array_attribute(value)
-  end
-  alias_method :source=, :sources=
+  alias_method :stylesheet=, :stylesheets=
 
   def command
     validate_configuration!
     command_string = Array.new
     command_string << self.executable
-    command_string << "--input=#{self.input}"
-    self.sources.each do |source|
-      command_string << source
+    command_string << "--input=#{self.input_format}"
+    command_string << "--silent"
+    self.stylesheets.each do |stylesheet|
+      command_string << "--style=#{stylesheet}"
     end
-    command_string << '-o -'
+    command_string << '-'
+    command_string << '-o'
+
+    if self.to_file?
+      command_string << self.output_file
+    else
+      command_string << '-'
+    end
+
     command_string.join(' ')
   end
 
-  def to_stream
-    pdf = IO.popen(self.command, "w+")
-    pdf.close_write
-    result = pdf.gets(nil)
-    pdf.close_read
-    return result
+  def to_pdf
+    self.run_command
+  end
+
+  def to_file?
+    self.output_file.present?
   end
 
   protected
 
-  def validate_configuration!
-    raise SourceError unless self.sources.present?
-    raise InputError unless self.valid_inputs.include?(self.input)
+  def run_command
+    self.pdf = IO.popen(self.command, "w+")
+    self.pdf.puts(self.source)
+    if self.to_file?
+      self.pdf.close
+    else
+      self.pdf.close_write
+      result = self.pdf.gets(nil)
+      self.pdf.close_read
+      result
+    end
   end
 
-  def valid_inputs
+  def validate_configuration!
+    raise ExecutableError unless self.executable.present?
+    raise SourceError unless self.source.present?
+    raise InputError unless self.valid_input_formats.include?(self.input_format)
+  end
+
+  def valid_input_formats
     ['html', 'xml', 'auto']
   end
 
@@ -83,3 +91,8 @@ class Prince
   end
 end
 
+# prince = Prince.new
+# prince.stylesheets = ['prince.css']
+# prince.source = string
+# prince.to_file('my.pdf')
+# prince.to_stream
